@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: blog
+  namespace: blogns
+spec:
+  selector:
+    app: blog
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 2368
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: blog-content
+    namespace: blogns
+spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: do-block-storage
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: blog
+    namespace: blogns
+    labels:
+        app: blog
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: blog
+    template:
+        metadata:
+            labels:
+                app: blog
+        spec:
+            containers:
+            - name: blog
+              image: ghost:3.16.1
+              imagePullPolicy: Always
+              ports:
+                - containerPort: 2368
+              env:
+                - name: url
+                  value: http://myblog.com
+                - name: database__client
+                  value: mysql
+                - name: database__connection__host
+                  value: 10.244.1.6
+                - name: database__connection__user
+                  value: root
+                - name: database__connection__password
+                  value: mysql-password
+                - name: database__connection__database
+                  value: teilinnet-db
+              volumeMounts:
+              - mountPath: /var/lib/ghost/content
+                name: content
+            volumes:
+            - name: content
+              persistentVolumeClaim:
+                claimName: blog-content
